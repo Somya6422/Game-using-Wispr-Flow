@@ -1,5 +1,7 @@
 # VANTAGE: ZERO
 
+**Play it live:** https://vantage-zero.vercel.app (Chrome or Edge, keyboard and mouse; press **/** in flight for every key and voice command)
+
 Cinematic 3D fighter-aircraft combat — **Mission 01: Operation Cold Threshold** is fully playable from the main menu to the hangar.
 
 Browser game: **Vite + TypeScript + Three.js + Web Audio API**. Everything (terrain, aircraft, audio, dialogue) is generated locally – no external assets, no network and no API keys are needed to play.
@@ -13,6 +15,13 @@ Browser game: **Vite + TypeScript + Three.js + Web Audio API**. Everything (terr
 | Node.js | 24.x (any current LTS/stable should work) |
 | npm | 11.x |
 | Browser | Current Chrome / Edge / Firefox with WebGL2 (hardware acceleration on) |
+
+## Deployment (Vercel)
+
+- Live at **https://vantage-zero.vercel.app**. The Vercel project `vantage-zero` is connected to this GitHub repo, so every push to `main` deploys to production automatically.
+- Build settings are pinned in `vercel.json`: Vite, `npm ci`, `npm run build`, output `dist`. Models are cached for 7 days and hashed assets for a year.
+- Manual deploy from this folder: `vercel deploy --prod` (CLI logged in as the project owner).
+- Link preview: `public/og-image.jpg`, an in-game screenshot, is the Open Graph / Twitter card image and favicon.
 
 ## Install, run, build, test
 
