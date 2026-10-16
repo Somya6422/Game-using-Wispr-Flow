@@ -1,4 +1,5 @@
-import { parseCommands, describe, type Cmd } from './CommandParser';
+import { describe, type Cmd } from './CommandParser';
+import { understand } from './Interpreter';
 import type { Settings } from '../ui/Settings';
 import { bindings, keyName } from '../game/Bindings';
 
@@ -13,6 +14,7 @@ export interface VoiceHost {
 }
 
 const GLOBAL_TYPES = new Set(['pause', 'resume', 'map', 'objectives', 'restart', 'hangar', 'menu', 'new_campaign', 'pick_route', 'launch', 'briefing', 'continue', 'settings', 'controls', 'credits', 'back', 'interact']);
+type Line = { text: string; bad?: boolean; note?: boolean; chips?: string[] };
 type SR = { start(): void; stop(): void; onresult: ((e: unknown) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; continuous: boolean; interimResults: boolean; lang: string };
 
 /**
@@ -65,7 +67,7 @@ export class VoiceController {
   private updateHint() {
     const key = keyName(bindings.code('voice'));
     (this.root.querySelector('.vhint') as HTMLElement).textContent = this.root.classList.contains('focus')
-      ? 'Speak with Wispr Flow now (or type) · Enter sends · Esc cancels'
+      ? 'Speak with Wispr Flow now (or type) · plain English and typos are fine · Enter sends · Esc cancels'
       : `Press ${key} to speak or type a command · try “gear down and throttle eighty percent”`;
   }
 
@@ -93,28 +95,46 @@ export class VoiceController {
 
   /** source: 'typed' covers keyboard and Wispr Flow dictation; 'mic' is the browser recogniser. */
   submit(text: string, source: 'typed' | 'mic') {
-    let cmds = parseCommands(text);
-    if (source === 'mic') cmds = cmds.filter(c => c.t !== 'unknown' && (c.t !== 'radio' || /^\s*(tell|ask|radio|ground|specter|wingman)/i.test(text)));
-    if (!cmds.length) return;
-    const out: string[] = [];
-    for (const c of cmds) {
-      if (c.t === 'unknown') { out.push('✗ Not understood. Try “gear down”, “heading 270”, “climb to 4000 feet”, “cover me”, “land”.'); continue; }
-      let fb: string | null = null;
-      if (GLOBAL_TYPES.has(c.t)) fb = this.h.handleGlobal(c);
-      if (fb === null) fb = this.h.flightExec(c);
-      out.push(`✓ ${describe(c)} — ${fb ?? 'not available in this screen'}`);
+    let clauses = understand(text).clauses;
+    // the open microphone hears room chatter: act only on what it clearly understood, never on a stray call sign
+    if (source === 'mic') clauses = clauses.filter(c => c.how !== 'unknown' && (c.cmds[0]?.t !== 'radio' || /^\s*(tell|ask|radio|ground|specter|wingman)/i.test(text)));
+    if (!clauses.length) return;
+    const out: Line[] = [];
+    for (const c of clauses) {
+      if (c.how === 'unknown') {
+        out.push(c.suggest.length
+          ? { text: `✗ Didn’t get “${c.said}”. Did you mean:`, bad: true, chips: c.suggest }
+          : { text: `✗ Didn’t get “${c.said}”. Try “gear down”, “turn left”, “climb to 5000 feet”, “land” or “help”.`, bad: true });
+        continue;
+      }
+      if (c.how !== 'exact') out.push({ text: `≈ read “${c.said}” as “${c.read}”`, note: true });
+      for (const cmd of c.cmds) {
+        let fb: string | null = null;
+        if (GLOBAL_TYPES.has(cmd.t)) fb = this.h.handleGlobal(cmd);
+        if (fb === null) fb = this.h.flightExec(cmd);
+        out.push({ text: `✓ ${describe(cmd)} — ${fb ?? 'not available in this screen'}` });
+      }
     }
     this.h.click();
-    this.history.push({ text, feedback: out }); if (this.history.length > 50) this.history.shift();
+    this.history.push({ text, feedback: out.map(l => l.text) }); if (this.history.length > 50) this.history.shift();
     this.show(text, out, source);
   }
 
-  say(text: string) { this.show('', [text], 'typed'); }
+  say(text: string) { this.show('', [{ text, bad: text.startsWith('✗') }], 'typed'); }
 
-  private show(heard: string, lines: string[], source: string) {
+  private show(heard: string, lines: Line[], source: string) {
     const frag = document.createDocumentFragment();
     if (heard) { const d = document.createElement('div'); d.className = 'vheard'; d.textContent = `${source === 'mic' ? '🎙' : '›'} ${heard}`; frag.append(d); }
-    for (const l of lines) { const d = document.createElement('div'); d.className = 'vfb' + (l.startsWith('✗') ? ' bad' : ''); d.textContent = l; frag.append(d); }
+    for (const l of lines) {
+      const d = document.createElement('div'); d.className = 'vfb' + (l.bad ? ' bad' : '') + (l.note ? ' note' : ''); d.textContent = l.text;
+      for (const s of l.chips ?? []) {
+        const b = document.createElement('button'); b.className = 'vchip'; b.textContent = s;
+        b.addEventListener('pointerdown', e => e.preventDefault());   // keep focus in the command field
+        b.addEventListener('click', () => this.submit(s, 'typed'));
+        d.append(' ', b);
+      }
+      frag.append(d);
+    }
     this.log.append(frag);
     while (this.log.children.length > 7) this.log.firstElementChild!.remove();
     this.root.classList.add('active'); clearTimeout(this.fade);

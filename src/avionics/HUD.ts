@@ -81,6 +81,12 @@ export class HUD {
   private W = 1; private H = 1; private dpr = 1;
   /** screen-space rectangle of the comms MFD (for the clickable squad buttons placed under it) */
   commsRect: { x: number; y: number; w: number; h: number } | null = null;
+  /** top of the bottom-centre DOM band (voice bar, pilot bar, subtitles) in screen px; HUD text stays above it */
+  dockTop = Infinity;
+  /** current HUD scale (virtual px → screen px) */
+  get scale() { return this.u; }
+  /** screen px each bottom MFD occupies from its edge, for the layout manager */
+  mfdSide(mode: MfdMode) { return mode === 'full' ? (MFD + 14) * this.u : (170 + 14) * this.u; }
   private fpm: { x: number; y: number } | null = null;
   private pip: { x: number; y: number } | null = null;
   private boxes = new Map<Unit, { x: number; y: number; s: number }>();
@@ -601,18 +607,26 @@ export class HUD {
 
   private drawPrompt(s: HudInput) {
     const g = this.g;
-    if (s.startup > 0 && s.startup < 1) {
-      g.fillStyle = AMBER; g.textAlign = 'center'; g.font = 'bold 15px Consolas, monospace';
-      g.fillText(`ENGINE START  ${Math.round(s.startup * 100)}%   [${['BATT', 'APU', 'ENG L', 'ENG R'].map((n, i) => (s.startup > (i + 1) / 4 ? '✓' : '…') + n).join(' ')}]`, this.W / 2, this.H * 0.62);
+    // stacked upward from just above the bottom band so they never sit under the voice bar, buttons or subtitles
+    const lines: [string, string, string][] = [];
+    if (s.hint) lines.push([s.hint, CYAN, '14px']);
+    if (s.weaponMsg) lines.push([s.weaponMsg, AMBER, 'bold 14px']);
+    if (s.prompt) lines.push([s.prompt, WHITE, 'bold 16px']);
+    if (s.startup > 0 && s.startup < 1) lines.push([`ENGINE START  ${Math.round(s.startup * 100)}%   [${['BATT', 'APU', 'ENG L', 'ENG R'].map((n, i) => (s.startup > (i + 1) / 4 ? '✓' : '…') + n).join(' ')}]`, AMBER, 'bold 15px']);
+    let y = Math.min(this.H * 0.74, this.dockTop / this.u - 16);
+    g.textAlign = 'center';
+    for (const [text, col, font] of lines) {
+      g.font = `${font} Consolas, monospace`;
+      const w = g.measureText(text).width + 20;
+      g.fillStyle = PANEL; g.fillRect(this.W / 2 - w / 2, y - 11, w, 22);
+      g.fillStyle = col; g.fillText(text, this.W / 2, y);
+      y -= 26;
     }
-    if (s.prompt) { g.fillStyle = WHITE; g.textAlign = 'center'; g.font = 'bold 17px Consolas, monospace'; g.fillText(s.prompt, this.W / 2, this.H * 0.66); }
-    if (s.weaponMsg) { g.fillStyle = AMBER; g.textAlign = 'center'; g.font = 'bold 14px Consolas, monospace'; g.fillText(s.weaponMsg, this.W / 2, this.H * 0.70); }
-    if (s.hint) { g.fillStyle = CYAN; g.textAlign = 'center'; g.font = '14px Consolas, monospace'; g.fillText(s.hint, this.W / 2, this.H * 0.74); }
     g.font = '13px Consolas, "Courier New", monospace';
   }
 
   private drawDetect(s: HudInput) {
-    const mi = s.mission!, g = this.g, x = this.W / 2 - 100, y = 100;
+    const mi = s.mission!, g = this.g, x = this.W / 2 - 100, y = 122;   // below the assist banner (82–106)
     g.textAlign = 'left'; g.font = '12px Consolas, monospace'; g.fillStyle = mi.masked ? GREEN : AMBER; g.fillText(`RADAR NETWORK  ${mi.masked ? 'TERRAIN-MASKED' : 'EXPOSED'}`, x, y);
     g.strokeStyle = DIM; g.strokeRect(x, y + 8, 200, 6);
     g.fillStyle = mi.detect > 66 ? RED : mi.detect > 33 ? AMBER : GREEN; g.fillRect(x, y + 8, 200 * mi.detect / 100, 6);
@@ -621,7 +635,10 @@ export class HUD {
   }
 
   private drawLanding(s: HudInput) {
-    const g = this.g, gd = s.guidance!, m = s.player.model, cx = this.W / 2, cy = this.H / 2 + 120;
+    const g = this.g, gd = s.guidance!, m = s.player.model;
+    const commsBottom = 14 + 150 + 34, tsaTop = this.H - (s.mfd === 'full' ? MFD : 170) - 14;
+    const fits = tsaTop - commsBottom > 112 + 52;
+    const cx = fits ? this.W - 14 - MFD / 2 : this.W / 2, cy = fits ? commsBottom + 8 + 56 : this.H / 2 + 90;
     g.save();
     g.strokeStyle = DIM; g.lineWidth = 1; g.strokeRect(cx - 56, cy - 56, 112, 112);
     g.beginPath(); g.moveTo(cx - 56, cy); g.lineTo(cx + 56, cy); g.moveTo(cx, cy - 56); g.lineTo(cx, cy + 56); g.stroke();

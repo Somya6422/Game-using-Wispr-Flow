@@ -99,9 +99,12 @@ body[data-state="DEBRIEFING"] #subtitle, body[data-state="MISSION_FAILED"] #subt
 #voice .vin::placeholder { color: rgba(140,170,160,.7); }
 #voice .vbtn { padding: 3px 9px; font-size: 12px; text-transform: none; letter-spacing: 0; text-align: center; }
 #voice .vbtn.on { border-color: var(--r); color: var(--r); }
-#voice .vlog { max-height: 150px; overflow: hidden; margin-bottom: 4px; opacity: 0; transition: opacity .4s; text-align: left; }
-#voice.active .vlog, #voice.focus .vlog { opacity: 1; }
+#voice .vlog { max-height: 150px; overflow: hidden; margin-bottom: 4px; display: none; text-align: left; }
+#voice.active .vlog, #voice.focus .vlog { display: block; }
 #voice .vheard { color: var(--c); } #voice .vfb { color: var(--g); } #voice .vfb.bad { color: var(--a); }
+#voice .vfb.note { color: #9fc9d6; font-style: italic; }
+#voice .vchip { font: inherit; font-size: 12px; color: var(--c); background: rgba(0,0,0,.5); border: 1px solid var(--c); border-radius: 12px; padding: 2px 10px; margin: 3px 2px; min-height: 26px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+#voice .vchip:hover { background: rgba(80,200,230,.18); }
 #voice .vhint { text-align: center; font-size: 11px; opacity: .55; margin-top: 3px; }
 #voice .vlog > div { background: rgba(0,0,0,.45); padding: 1px 8px; }
 #pilotbar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 62px; z-index: 9; font-family: Consolas, "Courier New", monospace; max-width: min(940px, 74vw); }
@@ -129,7 +132,8 @@ body[data-state="DEBRIEFING"] #subtitle, body[data-state="MISSION_FAILED"] #subt
 #squadbtns { position: absolute; z-index: 9; display: flex; gap: 4px; }
 #squadbtns button { flex: 1; background: rgba(6,16,22,.8); color: #7fe3ff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 0; font: 11px Consolas, monospace; cursor: pointer; }
 #squadbtns button:hover { border-color: #7fe3ff; color: #fff; }
-body[data-state="TAKEOFF"] #subtitle, body[data-state="ACTIVE_MISSION"] #subtitle { bottom: 150px; }
+body[data-state="TAKEOFF"] #subtitle, body[data-state="ACTIVE_MISSION"] #subtitle { font-size: 15px; padding: 6px 14px; }
+body[data-state="TAKEOFF"] #toast, body[data-state="ACTIVE_MISSION"] #toast { top: 112px; }
 
 #commands { position: absolute; inset: 0; z-index: 32; background: rgba(0,6,10,.8); align-items: center; justify-content: center; }
 #commands .ccard { width: min(1180px, 96vw); max-height: 92vh; overflow: auto; background: rgba(8,20,28,.97); border: 1px solid var(--a); border-radius: 10px; padding: 16px 22px; color: #e8f4ff; font: 13px Consolas, "Courier New", monospace; }
@@ -147,3 +151,7 @@ body[data-state="TAKEOFF"] #subtitle, body[data-state="ACTIVE_MISSION"] #subtitl
 #commands .cw { color: var(--c); font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
 #commands .cv { color: #c9dcd6; margin: 0; line-height: 1.6; }
 #commands .cclose { background: var(--a); color: #101820; border: 0; border-radius: 5px; padding: 6px 14px; font: inherit; font-weight: bold; cursor: pointer; }
+
+#pilotbar .pbbtn, #squadbtns button { min-height: 30px; }
+#pilotbar .pbrow { row-gap: 6px; }
+#pilotbar .pbstep { margin-bottom: 6px; }

@@ -843,7 +843,7 @@ export class FlightSession {
     const info = approachInfo(pm.pos.x, pm.pos.y, pm.pos.z, chooseRunwayDirection(pm.pos.z, pm.heading));
     const phase = this.director.phase;
     const showILS = phase === 'P5_RTB' && !pm.onGround && info.dz < 16000 && info.dz > -800;
-    const prompt = this.contextPrompt();
+    const prompt = this.guide().step ? null : this.contextPrompt();   // the pilot bar already shows the step
     if (this.ecmT > 0) this.ecmT = Math.max(0, this.ecmT - dt); if (this.ecmCd > 0) this.ecmCd = Math.max(0, this.ecmCd - dt);
     const egtTarget = pm.engineOn ? 360 + 430 * pm.engineN + (pm.afterburner ? 240 : 0) : 20;
     this.egt += (egtTarget - this.egt) * Math.min(1, dt * 0.7);

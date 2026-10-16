@@ -8,6 +8,7 @@ import { loadPilotModels } from '../characters/PilotModels';
 import { VoiceController } from '../voice/VoiceController';
 import { PilotBar } from '../ui/PilotBar';
 import { CommandsSheet } from '../ui/CommandsSheet';
+import { FlightLayout } from '../ui/FlightLayout';
 import type { Cmd } from '../voice/CommandParser';
 import { loadDem } from '../world/Dem';
 import { ACTIONS, bindings } from './Bindings';
@@ -47,6 +48,7 @@ export class Game {
   voice!: VoiceController;
   pilotBar!: PilotBar;
   commands!: CommandsSheet;
+  private layout = new FlightLayout();
   session: FlightSession | null = null;
   hangar: HangarScene | null = null;
   route: Route = 'A_BOY_SU57';
@@ -216,6 +218,7 @@ export class Game {
 
   // ------------------------------------------------------------------------- state changes
   private onState(to: GameStateId, from: GameStateId) {
+    if (to !== 'TAKEOFF' && to !== 'ACTIVE_MISSION') this.layout.reset();
     this.input.reset();
     document.body.dataset.state = to;
     const ui = this.ui;
@@ -443,11 +446,13 @@ export class Game {
   private tick(dt: number) {
     if (!this.ready) return;
     const st = this.fsm.state;
+    if (st !== 'TAKEOFF' && st !== 'ACTIVE_MISSION') this.layout.reset();
     switch (st) {
       case 'TAKEOFF': case 'ACTIVE_MISSION': {
         const s = this.session; if (!s) break;
         s.update(dt);
         this.ui.showPrompt(null);
+        this.hud.dockTop = this.layout.apply(this.hud.mfdSide(s.mfdMode));
         this.sm.render(this.cam.camera);
         return;
       }

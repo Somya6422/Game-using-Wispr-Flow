@@ -29,6 +29,8 @@ const isNum = (w: string) => w in UNITS || w in TEENS || w in TENS || w === 'hun
 function evalWords(ws: string[]): string {
   // "two seven zero" -> 270 (digit-by-digit); "four thousand five hundred" -> 4500; "fifteen hundred" -> 1500
   if (ws.every(w => w in UNITS) && ws.length >= 2) return ws.map(w => UNITS[w]).join('');
+  // "two seventy" -> 270, "one eighty" -> 180, "four fifty" -> 450 (how headings and speeds are spoken)
+  if (ws.length >= 2 && UNITS[ws[0]] > 0 && (ws[1] in TENS || ws[1] in TEENS) && !ws.some(w => w === 'hundred' || w === 'thousand')) return String(UNITS[ws[0]]) + evalWords(ws.slice(1)).padStart(2, '0');
   let total = 0, cur = 0;
   for (const w of ws) {
     if (w in UNITS) cur += UNITS[w]; else if (w in TEENS) cur += TEENS[w]; else if (w in TENS) cur += TENS[w];
@@ -121,7 +123,7 @@ function parseClause(s: string, raw: string): Cmd[] {
   if (has(/\b(hover|stovl|vtol|vertical (take ?off|landing|lift)|lift fan|convert to (hover|forward flight)|transition( to forward flight)?|forward flight)\b/)) return [{ t: 'stovl' }];
   if (has(/\b(ecm|jammer|jamming|jam (them|the radar|radar)|electronic (warfare|attack|countermeasures))\b/)) return [{ t: 'ecm' }];
   if (has(/\b(recover|auto ?recover(y)?|panic|save me|spin recovery|i ?a?m lost|i ?a?m spinning|unusual attitude)\b/)) return [{ t: 'recover' }];
-  if (has(/\b(level (the )?wings|wings level|level (out|off)|straight and level|fly level)\b/)) return [{ t: 'level' }];
+  if (has(/\b(level (the )?wings|wings level|level (out|off)|straight and level|fly level)\b/) && !has(/\b\d{3,6} ?(feet|foot|ft|meters?|metres?|m)\b/)) return [{ t: 'level' }];
   if (has(/\b(hold|maintain|keep)( this| the| current)? (altitude|height)\b/)) return [{ t: 'hold_alt' }];
   if (has(/\b(hold|maintain|keep)( this| the| current)? (heading|course)\b/)) return [{ t: 'hold_hdg' }];
   if ((m = s.match(/\b(?:hold|maintain|keep|set|speed|airspeed)\b.*?\b(\d{2,3})( knots?| kt| kts)?\b/)) && has(/\b(speed|airspeed|knots?)\b/)) return [{ t: 'hold_speed', kt: parseInt(m[1]) }];
@@ -149,6 +151,8 @@ function parseClause(s: string, raw: string): Cmd[] {
     const down = /\b(descend|go down|drop|lower)\b/.test(s);
     return [rel ? { t: 'alt_rel', meters: down ? -v : v } : { t: 'alt', meters: v }];
   }
+  // number before the verb: "5000 feet climb", "level off at 6000 feet"
+  if ((m = s.match(/\b(\d{3,6}) ?(feet|foot|ft|meters?|metres?|m)\b/)) && has(/\b(climb|ascend|descend|level|altitude|height)\b/)) return [{ t: 'alt', meters: parseFloat(m[1]) * (/^m/.test(m[2]) ? 1 : FT) }];
   if (has(/\b(climb|ascend|gain altitude)\b/)) return [{ t: 'alt_rel', meters: 600 }];
   if (has(/\b(descend|lose altitude|go lower)\b/)) return [{ t: 'alt_rel', meters: -600 }];
   if ((m = s.match(/\b(?:heading|course|steer|come to|fly)\s+(\d{1,3})\b/))) return [{ t: 'heading', deg: parseInt(m[1]) % 360 }];
